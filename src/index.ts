@@ -1,4 +1,5 @@
 import { format } from "prettier"
+import * as phpPlugin from "@prettier/plugin-php"
 
 function newlineOrSpace(tag: string): string {
   return tag.includes("\n") ? "\n" : " "
@@ -77,13 +78,7 @@ function getBaseOptions(options: any): any {
 }
 
 export = {
-  languages: [
-    {
-      extensions: [".php"],
-      name: "Mixed-PHP",
-      parsers: ["mixed-php"],
-    },
-  ],
+  languages: phpPlugin.languages.map((language) => ({ ...language, parsers: ["mixed-php"] })),
   parsers: {
     "mixed-php": {
       parse: (text) => text,
