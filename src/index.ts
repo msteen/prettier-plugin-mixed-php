@@ -56,7 +56,9 @@ function formatMixedPhp(text: string, options: object): string {
           return replacement
         }),
       { ...options, parser: "html" }
-    ).replace(/<\?(php|=)[ \t]+/g, "<?$1 ")
+    )
+      .replace(/<\?(php|=)[ \t]+/g, "<?$1 ")
+      .replace(/<\?= echo /g, "<?= ")
   } else {
     return format(text, { ...options, parser: "php" })
   }
