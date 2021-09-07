@@ -1,12 +1,15 @@
-import { format } from "prettier"
 import * as phpPlugin from "@prettier/plugin-php"
+import { execSync } from "child_process"
+import * as prettier from "prettier"
 
 function newlineOrSpace(tag: string): string {
   return tag.includes("\n") ? "\n" : " "
 }
 
 function formatMixedPhp(text: string, options: object): string {
-  text = text.replace(/<\?(?!php|=)/g, "<?php")
+  text = text
+    .replace(/<\?(?!php|=)/g, "<?php")
+    .replace(/<\?(php|=)\s*/gs, (match, tagType) => "<?" + tagType + newlineOrSpace(match))
   const tags = Array.from(text.matchAll(/<\?(?:php|=)|\?>/g))
   const trailingCloseTag = text.match(/\?>\s*$/)
   let unbalancedTags = 0
@@ -24,45 +27,58 @@ function formatMixedPhp(text: string, options: object): string {
     let i = 0
     let shortTag = false
     let betweenPhp: { closeTag: string; between: string; openTag: string }[] = []
-    return format(
-      format(
-        "<?php" +
-          text.replace(/(^|\s*\?>)(.*?)(<\?(?:php|=)\s*|$)/gs, (_match, closeTag, between, openTag) => {
+    return prettier
+      .format(
+        prettier
+          .format(
+            "<?php" +
+              text.replace(/(^|\s*\?>)(.*?)(<\?(?:php|=)\s*|$)/gs, (_match, closeTag, between, openTag) => {
+                let replacement = ""
+                if (shortTag) {
+                  replacement += ";"
+                }
+                replacement += "\n//__MIXED_PHP_" + i++ + "__\n"
+                shortTag = openTag.startsWith("<?=")
+                if (shortTag) {
+                  replacement += "echo "
+                }
+                betweenPhp.push({ closeTag, between, openTag })
+                return replacement
+              }),
+            { ...options, parser: "php" }
+          )
+          .slice("<?php".length)
+          .replace(/\n[ \t]*\/\/__MIXED_PHP_(\d+)__\n/gs, (_match, i) => {
             let replacement = ""
-            if (shortTag) {
-              replacement += ";"
+            const { closeTag, between, openTag } = betweenPhp[i]
+            if (i != 0) {
+              replacement += newlineOrSpace(closeTag) + "?>"
             }
-            replacement += "\n//__MIXED_PHP_" + i++ + "__\n"
-            shortTag = openTag.startsWith("<?=")
-            if (shortTag) {
-              replacement += "echo "
+            replacement += between
+            if (i != betweenPhp.length - 1) {
+              replacement += (openTag.startsWith("<?=") ? "<?=" : "<?php") + newlineOrSpace(openTag)
             }
-            betweenPhp.push({ closeTag, between, openTag })
             return replacement
           }),
-        { ...options, parser: "php" }
+        { ...options, parser: "html" }
       )
-        .slice("<?php".length)
-        .replace(/\n\s*\/\/__MIXED_PHP_(\d+)__\n/gs, (_match, i) => {
-          let replacement = ""
-          const { closeTag, between, openTag } = betweenPhp[i]
-          if (i != 0) {
-            replacement += newlineOrSpace(closeTag) + "?>"
-          }
-          replacement += between
-          if (i != betweenPhp.length - 1) {
-            replacement += (openTag.startsWith("<?=") ? "<?=" : "<?php") + newlineOrSpace(openTag)
-          }
-          return replacement
-        }),
-      { ...options, parser: "html" }
-    )
       .replace(/<\?(php|=)[ \t]+/g, "<?$1 ")
       .replace(/<\?= echo /g, "<?= ")
   } else {
-    return format(text, { ...options, parser: "php" })
+    return prettier.format(text, { ...options, parser: "php" })
   }
 }
+
+// FIXME: Surely there has to be a less gross solution?
+// Open issue for async support: https://github.com/prettier/prettier/issues/4459
+const options = JSON.parse(
+  execSync(
+    `node -e 'require("prettier").resolveConfig(process.cwd()).then((options) => {
+  console.log(JSON.stringify(options))
+})'`,
+    { encoding: "utf8" }
+  )
+)
 
 export = {
   languages: phpPlugin.languages.map((language) => ({ ...language, parsers: ["mixed-php"] })),
@@ -74,7 +90,7 @@ export = {
   },
   printers: {
     "mixed-php-ast": {
-      print: (path, options) => formatMixedPhp(path.getValue(), options),
+      print: (path) => formatMixedPhp(path.getValue(), options),
     },
   },
 }

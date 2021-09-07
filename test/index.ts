@@ -24,22 +24,6 @@ let text = readExample("mixed")
 
 console.log(
   format(text, {
-    printWidth: 110,
-    tabWidth: 4,
-    useTabs: false,
-    semi: true,
-    singleQuote: false,
-    quoteProps: "consistent",
-    jsxSingleQuote: false,
-    trailingComma: "es5",
-    bracketSpacing: true,
-    jsxBracketSameLine: false,
-    arrowParens: "always",
-    requirePragma: false,
-    insertPragma: false,
-    htmlWhitespaceSensitivity: "css",
-    endOfLine: "lf",
-    braceStyle: "1tbs",
     parser: "mixed-php",
     plugins: ["."],
   })
