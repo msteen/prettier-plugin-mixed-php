@@ -1,5 +1,4 @@
 import * as phpPlugin from "@prettier/plugin-php"
-import { execSync } from "child_process"
 import * as prettier from "prettier"
 
 function newlineOrSpace(tag: string): string {
@@ -69,16 +68,20 @@ function formatMixedPhp(text: string, options: object): string {
   }
 }
 
-// FIXME: Surely there has to be a less gross solution?
-// Open issue for async support: https://github.com/prettier/prettier/issues/4459
-const options = JSON.parse(
-  execSync(
-    `node -e 'require("prettier").resolveConfig(process.cwd()).then((options) => {
-  console.log(JSON.stringify(options))
-})'`,
-    { encoding: "utf8" }
-  )
-)
+function getBaseOptions(options) {
+  const baseOptions = {}
+  for (const key in prettier.__internal.coreOptions.options) {
+    if (["cursorOffset", "rangeStart", "rangeEnd"].includes(key)) continue
+    baseOptions[key] = options[key]
+  }
+  for (const plugin of options.plugins) {
+    if (plugin.options === undefined) continue
+    for (const key in plugin.options) {
+      baseOptions[key] = options[key]
+    }
+  }
+  return baseOptions
+}
 
 export = {
   languages: phpPlugin.languages.map((language) => ({ ...language, parsers: ["mixed-php"] })),
@@ -90,7 +93,7 @@ export = {
   },
   printers: {
     "mixed-php-ast": {
-      print: (path) => formatMixedPhp(path.getValue(), options),
+      print: (path, options) => formatMixedPhp(path.getValue(), getBaseOptions(options)),
     },
   },
 }
