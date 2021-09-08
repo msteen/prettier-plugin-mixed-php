@@ -1,6 +1,6 @@
 import * as fs from "fs"
-import { format } from "prettier"
 import { inspect } from "util"
+import * as prettier from "prettier"
 
 function log(...args: any[]): void {
   console.log(
@@ -22,9 +22,12 @@ function readExample(name: string): string {
 let text = readExample("mixed")
 // let text = readExample("unbalanced")
 
-console.log(
-  format(text, {
-    parser: "mixed-php",
-    plugins: ["."],
-  })
-)
+prettier.resolveConfig(process.cwd()).then((options) => {
+  console.log(
+    prettier.format(text, {
+      ...options,
+      parser: "mixed-php",
+      plugins: ["."],
+    })
+  )
+})
