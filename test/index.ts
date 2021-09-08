@@ -14,13 +14,18 @@ function log(...args: any[]): void {
 }
 
 function readExample(name: string): string {
-  return fs.readFileSync(`examples/${name}.php`, "utf-8")
+  let contents = ""
+  try {
+    contents = fs.readFileSync(`examples/${name}.php`, "utf-8")
+  } catch (_) {}
+  return contents
 }
 
 // let text = readExample("bad")
 // let text = readExample("trailing")
-let text = readExample("mixed")
+// let text = readExample("mixed")
 // let text = readExample("unbalanced")
+let text = readExample("tpl") || readExample("mixed")
 
 prettier.resolveConfig(process.cwd()).then((options) => {
   console.log(

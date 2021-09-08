@@ -47,14 +47,14 @@ function formatHtmlContainingPhp(text: string, options: object): string {
   let replaced: string[] = []
   return prettier
     .format(
-      text.replace(/<\?(?:php|=).*?(?:\?>|$)/, (match) => {
-        const replacement = "<mixed-php>" + replaced.length + "</mixed-php>"
+      text.replace(/<\?(?:php|=).*?(?:\?>|$)/g, (match) => {
+        const replacement = "{{MIXED_PHP_" + replaced.length + "}}"
         replaced.push(match)
         return replacement
       }),
       { ...options, parser: "html" }
     )
-    .replace(/<mixed-php>(\d+)<\/mixed-php>/g, (_match, i) => {
+    .replace(/{{MIXED_PHP_(\d+)}}/g, (_match, i) => {
       return replaced[i]
     })
 }
