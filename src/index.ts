@@ -6,13 +6,11 @@ function newlineOrSpace(tag: string): string {
 }
 
 function formatPhpContainingHtml(text: string, options: object): string {
-  let replaced: { closeTag: string; between: string; openTag: string }[] = []
+  const replaced: { closeTag: string; between: string; openTag: string }[] = []
   text =
     "<?php" +
-    text.replace(/(^|;?\s*\?>)(.*?)(<\?(?:php|=)\s*|$)/gs, (_match, closeTag, between, openTag) => {
-      let replacement = ""
-      if (closeTag) replacement += ";"
-      replacement += "\necho __HTML_" + replaced.length + "__;\n"
+    text.replace(/(^|\s*\?>)(.*?)(<\?(?:php|=)\s*|$)/gs, (_match, closeTag, between, openTag) => {
+      let replacement = "\necho __HTML_" + replaced.length + "__;\n"
       if (openTag.startsWith("<?=")) {
         replacement += "echo "
       }
@@ -25,22 +23,22 @@ function formatPhpContainingHtml(text: string, options: object): string {
     .replace(/\n[ \t]*echo __HTML_(\d+)__;\n/gs, (_match, i) => {
       let replacement = ""
       const { closeTag, between, openTag } = replaced[i]
-      if (i != 0) {
+      if (closeTag) {
         replacement += newlineOrSpace(closeTag) + "?>"
       }
       replacement += between
-      if (i != replaced.length - 1) {
+      if (openTag) {
         replacement += (openTag.startsWith("<?=") ? "<?=" : "<?php") + newlineOrSpace(openTag)
       }
       return replacement
     })
     .replace(/<\?(php|=)[ \t]+/g, "<?$1 ")
-    .replace(/<\?= echo /g, "<?= ")
+    .replace(/<\?= echo (.*?); \?>/gs, "<?= $1 ?>")
   return text
 }
 
 function formatHtmlContainingPhp(text: string, options: object): string {
-  let replaced: string[] = []
+  const replaced: string[] = []
   text = text.replace(/<\?(?:php|=).*?(?:\?>|$)/gs, (match) => {
     const replacement = "{{PHP_" + replaced.length + "}}"
     replaced.push(match)
@@ -55,8 +53,15 @@ function formatHtmlContainingPhp(text: string, options: object): string {
 
 function formatMixedPhp(text: string, options: object): string {
   text = text
-    .replace(/<\?(?!php|=)/g, "<?php")
+    .replace(/<\?(?!php|=|xml)/g, "<?php")
+    .replace(/<\?=(.*?)(?!;)\s*\?>/gs, "<?=$1;?>")
     .replace(/<\?(php|=)\s*/gs, (match, tagType) => "<?" + tagType + newlineOrSpace(match))
+  const replaced: string[] = []
+  text = text.replace(/<\?xml.*?\?>/g, (match) => {
+    const replacement = "{{XML_HEADER_" + replaced.length + "}}"
+    replaced.push(match)
+    return replacement
+  })
   const tags = Array.from(text.matchAll(/<\?(?:php|=)|\?>/g))
   const trailingCloseTag = text.match(/\?>\s*$/)
   let unbalancedTags = 0
@@ -69,12 +74,21 @@ function formatMixedPhp(text: string, options: object): string {
   if (trailingCloseTag) {
     text = text.slice(0, trailingCloseTag.index)
   }
-  const mixedPHP = Math.ceil(tags.length / 2) > 1
+  const tagPairs = Math.ceil(tags.length / 2)
+  const mixedPHP = tagPairs > 1
   if (mixedPHP) {
-    return formatHtmlContainingPhp(formatPhpContainingHtml(text, options), options)
+    text = formatHtmlContainingPhp(formatPhpContainingHtml(text, options), options)
+  } else if (tagPairs === 1) {
+    text = prettier.format(text, { ...options, parser: "php" })
   } else {
-    return prettier.format(text, { ...options, parser: "php" })
+    text = prettier.format(text, { ...options, parser: "html" })
   }
+  if (replaced.length) {
+    text = text.replace(/{{XML_HEADER_(\d+)}}/g, (_match, i) => {
+      return replaced[i]
+    })
+  }
+  return text
 }
 
 function getBaseOptions(options) {
