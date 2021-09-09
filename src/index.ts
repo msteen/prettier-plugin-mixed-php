@@ -6,28 +6,23 @@ function newlineOrSpace(tag: string): string {
 }
 
 function formatPhpContainingHtml(text: string, options: object): string {
-  let shortTag = false
   let replaced: { closeTag: string; between: string; openTag: string }[] = []
-  return prettier
-    .format(
-      "<?php" +
-        text.replace(/(^|\s*\?>)(.*?)(<\?(?:php|=)\s*|$)/gs, (_match, closeTag, between, openTag) => {
-          let replacement = ""
-          if (shortTag) {
-            replacement += ";"
-          }
-          replacement += "\n//__MIXED_PHP_" + replaced.length + "__\n"
-          shortTag = openTag.startsWith("<?=")
-          if (shortTag) {
-            replacement += "echo "
-          }
-          replaced.push({ closeTag, between, openTag })
-          return replacement
-        }),
-      { ...options, parser: "php" }
-    )
+  text =
+    "<?php" +
+    text.replace(/(^|;?\s*\?>)(.*?)(<\?(?:php|=)\s*|$)/gs, (_match, closeTag, between, openTag) => {
+      let replacement = ""
+      if (closeTag) replacement += ";"
+      replacement += "\necho __HTML_" + replaced.length + "__;\n"
+      if (openTag.startsWith("<?=")) {
+        replacement += "echo "
+      }
+      replaced.push({ closeTag, between, openTag })
+      return replacement
+    })
+  text = prettier.format(text, { ...options, parser: "php" })
+  text = text
     .slice("<?php".length)
-    .replace(/\n[ \t]*\/\/__MIXED_PHP_(\d+)__\n/gs, (_match, i) => {
+    .replace(/\n[ \t]*echo __HTML_(\d+)__;\n/gs, (_match, i) => {
       let replacement = ""
       const { closeTag, between, openTag } = replaced[i]
       if (i != 0) {
@@ -41,22 +36,21 @@ function formatPhpContainingHtml(text: string, options: object): string {
     })
     .replace(/<\?(php|=)[ \t]+/g, "<?$1 ")
     .replace(/<\?= echo /g, "<?= ")
+  return text
 }
 
 function formatHtmlContainingPhp(text: string, options: object): string {
   let replaced: string[] = []
-  return prettier
-    .format(
-      text.replace(/<\?(?:php|=).*?(?:\?>|$)/g, (match) => {
-        const replacement = "{{MIXED_PHP_" + replaced.length + "}}"
-        replaced.push(match)
-        return replacement
-      }),
-      { ...options, parser: "html" }
-    )
-    .replace(/{{MIXED_PHP_(\d+)}}/g, (_match, i) => {
-      return replaced[i]
-    })
+  text = text.replace(/<\?(?:php|=).*?(?:\?>|$)/gs, (match) => {
+    const replacement = "{{PHP_" + replaced.length + "}}"
+    replaced.push(match)
+    return replacement
+  })
+  text = prettier.format(text, { ...options, parser: "html" })
+  text = text.replace(/{{PHP_(\d+)}}/g, (_match, i) => {
+    return replaced[i]
+  })
+  return text
 }
 
 function formatMixedPhp(text: string, options: object): string {
