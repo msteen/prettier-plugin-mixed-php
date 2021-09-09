@@ -7,3 +7,5 @@ This plugin works around them in various ways, like replacing `<?` for `<?php` p
 It seems to work in my tests so far, but it is undertested, so unconsidered edge cases are very likely to occur.
 
 _WARNING_: By leveraging the existing HTML and PHP plugins, we need to add them and prettier to the dependencies, which can lead to unexpected results if the code is formatted using a different version of prettier.
+
+- Fails with `<?php`, `<=`, or `?>` when in an escaped position, like comments or string literals.
