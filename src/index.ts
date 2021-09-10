@@ -52,6 +52,12 @@ function formatHtmlContainingPhp(text: string, options: object): string {
 }
 
 function formatMixedPhp(text: string, options: object): string {
+  const replaced: string[] = []
+  text = text.replace(/<\?xml.*?\?>/g, (match) => {
+    const replacement = "{{XML_HEADER_" + replaced.length + "}}"
+    replaced.push(match)
+    return replacement
+  })
   text = text
     .replace(/<\?(?!php|=|xml)/g, "<?php")
     .replace(
@@ -59,12 +65,6 @@ function formatMixedPhp(text: string, options: object): string {
       (_match, tagType, openSpace, between, closeSpace) =>
         "<?" + tagType + newlineOrSpace(openSpace) + between + ";" + newlineOrSpace(closeSpace) + "?>"
     )
-  const replaced: string[] = []
-  text = text.replace(/<\?xml.*?\?>/g, (match) => {
-    const replacement = "{{XML_HEADER_" + replaced.length + "}}"
-    replaced.push(match)
-    return replacement
-  })
   const tags = Array.from(text.matchAll(/<\?(?:php|=)|\?>/g))
   const trailingCloseTag = text.match(/\?>\s*$/)
   let unbalancedTags = 0
