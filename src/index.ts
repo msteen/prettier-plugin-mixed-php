@@ -22,16 +22,6 @@ function indent(options: any) {
 }
 
 function formatPhpContainingHtml(text: string, options: object): string {
-  // FIXME: Not safely possible with regexes.
-  // text = text.replace(/<\?(?:php|=).*?(?:\?>|$)/gs, (match) => {
-  //   return match
-  //     .replace(/"(?:[^"\\]|\\[\s\S])*"|\/\*(.*?)\*\//g, replaceFalsePositive)
-  //     .replace(/\/\/.*?(\?>|$)/gm, (match) =>
-  //       match.endsWith("?>")
-  //         ? replaceFalsePositive(match.slice(0, match.length - "?>".length)) + "?>"
-  //         : replaceFalsePositive(match)
-  //     )
-  // })
   const replaced: { closeTag: string; between: string; openTag: string }[] = []
   text =
     "<?php" +
@@ -109,10 +99,6 @@ function formatHtmlContainingPhp(text: string, options: object): string {
     .replace(returnPhpRegex, (_match, i) => replaced[i])
   return text
 }
-
-// function replaceFalsePositive(match: string): string {
-//   return match.replace(/<\?|\?>/g, (match) => (match[0] === "<" ? "OPEN" : "CLOSE"))
-// }
 
 function formatMixedPhp(text: string, options: object): string {
   const replaced: string[] = []
