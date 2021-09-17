@@ -1,11 +1,37 @@
 import * as phpPlugin from "@prettier/plugin-php"
+import { inspect } from "util"
 import * as prettier from "prettier"
+
+function log(...args: any[]): void {
+  console.log(
+    ...args.map((arg) =>
+      inspect(arg, {
+        depth: null,
+        colors: true,
+      })
+    )
+  )
+}
 
 function newlineOrSpace(tag: string): string {
   return tag.includes("\n") ? "\n" : " "
 }
 
+function indent(options: any) {
+  return options.useTabs ? "\t" : " ".repeat(options.tabWidth)
+}
+
 function formatPhpContainingHtml(text: string, options: object): string {
+  // FIXME: Not safely possible with regexes.
+  // text = text.replace(/<\?(?:php|=).*?(?:\?>|$)/gs, (match) => {
+  //   return match
+  //     .replace(/"(?:[^"\\]|\\[\s\S])*"|\/\*(.*?)\*\//g, replaceFalsePositive)
+  //     .replace(/\/\/.*?(\?>|$)/gm, (match) =>
+  //       match.endsWith("?>")
+  //         ? replaceFalsePositive(match.slice(0, match.length - "?>".length)) + "?>"
+  //         : replaceFalsePositive(match)
+  //     )
+  // })
   const replaced: { closeTag: string; between: string; openTag: string }[] = []
   text =
     "<?php" +
@@ -17,6 +43,8 @@ function formatPhpContainingHtml(text: string, options: object): string {
       replaced.push({ closeTag, between, openTag })
       return replacement
     })
+  const trailingCloseTag = text.match(/\?>\s*$/)
+  if (trailingCloseTag) text = text.slice(0, trailingCloseTag.index)
   text = prettier.format(text, { ...options, parser: "php" })
   text = text
     .slice("<?php".length)
@@ -32,24 +60,59 @@ function formatPhpContainingHtml(text: string, options: object): string {
       }
       return replacement
     })
-    .replace(/<\?(php|=)[ \t]+/g, "<?$1 ")
-    .replace(/<\?= echo (.*?); \?>/gs, "<?= $1 ?>")
+    .replace(/<\?php[ \t]+/g, "<?php ")
+    .replace(
+      /<\?=[ \t]+echo (.*?); \?>/gs,
+      (_match, between) => "<?= " + between.replace(/^[ \t]+/gm, indent(options)) + " ?>"
+    )
   return text
 }
+
+const returnPhpRegex = /(?:{{PHP_|<PHP )(\d+).*?(?:}}| \/>)/gs
 
 function formatHtmlContainingPhp(text: string, options: object): string {
   const replaced: string[] = []
   text = text.replace(/<\?(?:php|=).*?(?:\?>|$)/gs, (match) => {
-    const replacement = "{{PHP_" + replaced.length + "}}"
+    const i = match.indexOf("\n")
+    const firstLine = i !== -1 ? match.slice(0, i) : match
+    let replacement = "{{PHP_" + replaced.length
+    let template = ""
+    for (const c of firstLine.slice(replacement.length + "}}".length)) {
+      template += c.trim() === "" ? c : "_"
+    }
+    replacement += template + "}}"
     replaced.push(match)
     return replacement
   })
-  text = prettier.format(text, { ...options, parser: "html" })
-  text = text.replace(/{{PHP_(\d+)}}/g, (_match, i) => {
-    return replaced[i]
+  text = text.replace(/(?:^|>)(.*?)(?:<|$)/gs, (_match, between) => {
+    return (
+      ">" +
+      between.replace(/{{PHP_(\d+.*?)}}/gs, (_match, between) => {
+        return "<PHP " + between + " />"
+      }) +
+      "<"
+    )
   })
+  text = prettier.format(text, { ...options, parser: "html" })
+  text = text
+    .replace(
+      /^([ \t]*)(.*$)/gm,
+      (_match, leadingSpace, rest) =>
+        leadingSpace +
+        rest.replace(returnPhpRegex, (_match, i) =>
+          replaced[i]
+            .split("\n")
+            .map((line, i) => (i === 0 ? "" : leadingSpace) + line)
+            .join("\n")
+        )
+    )
+    .replace(returnPhpRegex, (_match, i) => replaced[i])
   return text
 }
+
+// function replaceFalsePositive(match: string): string {
+//   return match.replace(/<\?|\?>/g, (match) => (match[0] === "<" ? "OPEN" : "CLOSE"))
+// }
 
 function formatMixedPhp(text: string, options: object): string {
   const replaced: string[] = []
@@ -65,23 +128,10 @@ function formatMixedPhp(text: string, options: object): string {
       (_match, tagType, openSpace, between, closeSpace) =>
         "<?" + tagType + newlineOrSpace(openSpace) + between + ";" + newlineOrSpace(closeSpace) + "?>"
     )
-  const tags = Array.from(text.matchAll(/<\?(?:php|=)|\?>/g))
-  const trailingCloseTag = text.match(/\?>\s*$/)
-  let unbalancedTags = 0
-  for (const tag of tags) {
-    unbalancedTags += tag[0][0] === "<" ? 1 : -1
-  }
-  if (unbalancedTags !== 0 && !(unbalancedTags === 1 && !trailingCloseTag)) {
-    throw new Error("Encountered unbalanced PHP tags")
-  }
-  if (trailingCloseTag) {
-    text = text.slice(0, trailingCloseTag.index)
-  }
-  const tagPairs = Math.ceil(tags.length / 2)
-  const mixedPHP = tagPairs > 1
-  if (mixedPHP) {
+  const phpOpenCount = (text.match(/<\?(php|=)/g) || []).length
+  if (phpOpenCount > 1) {
     text = formatHtmlContainingPhp(formatPhpContainingHtml(text, options), options)
-  } else if (tagPairs === 1) {
+  } else if (phpOpenCount === 1) {
     text = prettier.format(text, { ...options, parser: "php" })
   } else {
     text = prettier.format(text, { ...options, parser: "html" })

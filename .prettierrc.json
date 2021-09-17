@@ -13,5 +13,14 @@
   "requirePragma": false,
   "insertPragma": false,
   "htmlWhitespaceSensitivity": "css",
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "overrides": [
+    {
+      "files": "*.tpl.php",
+      "options": {
+        "parser": "mixed-php",
+        "tabWidth": 2
+      }
+    }
+  ]
 }
