@@ -21,16 +21,22 @@ function indent(options: any) {
   return options.useTabs ? "\t" : " ".repeat(options.tabWidth)
 }
 
+const replaceFragment = (fragments: any[], i: number): any => {
+  const fragment = fragments[i]
+  delete fragments[i]
+  return fragment
+}
+
 function formatPhpContainingHtml(text: string, options: object): string {
-  const replaced: { closeTag: string; between: string; openTag: string }[] = []
+  const htmlFragments: { closeTag: string; between: string; openTag: string }[] = []
   text =
     "<?php" +
     text.replace(/(^|\s*\?>)(.*?)(<\?(?:php|=)\s*|$)/gs, (_match, closeTag, between, openTag) => {
-      let replacement = "\necho __HTML_" + replaced.length + "__;\n"
+      let replacement = "\necho __HTML_" + htmlFragments.length + "__;\n"
       if (openTag.startsWith("<?=")) {
         replacement += "echo "
       }
-      replaced.push({ closeTag, between, openTag })
+      htmlFragments.push({ closeTag, between, openTag })
       return replacement
     })
   const trailingCloseTag = text.match(/\?>\s*$/)
@@ -40,7 +46,8 @@ function formatPhpContainingHtml(text: string, options: object): string {
     .slice("<?php".length)
     .replace(/\n[ \t]*echo __HTML_(\d+)__;\n/gs, (_match, i) => {
       let replacement = ""
-      const { closeTag, between, openTag } = replaced[i]
+      const { closeTag, between, openTag } = replaceFragment(htmlFragments, i)
+      delete htmlFragments[i]
       if (closeTag) {
         replacement += newlineOrSpace(closeTag) + "?>"
       }
@@ -55,23 +62,27 @@ function formatPhpContainingHtml(text: string, options: object): string {
       /<\?=[ \t]+echo (.*?); \?>/gs,
       (_match, between) => "<?= " + between.replace(/^[ \t]+/gm, indent(options)) + " ?>"
     )
+  if (htmlFragments.some((item) => item !== undefined)) {
+    throw new Error("Not all HTML fragments were replaced back.")
+  }
   return text
 }
 
 const returnPhpRegex = /(?:{{PHP_|<PHP )(\d+).*?(?:}}| \/>)/gs
 
 function formatHtmlContainingPhp(text: string, options: object): string {
-  const replaced: string[] = []
+  const phpFragments: string[] = []
+
   text = text.replace(/<\?(?:php|=).*?(?:\?>|$)/gs, (match) => {
     const i = match.indexOf("\n")
     const firstLine = i !== -1 ? match.slice(0, i) : match
-    let replacement = "{{PHP_" + replaced.length
+    let replacement = "{{PHP_" + phpFragments.length
     let template = ""
     for (const c of firstLine.slice(replacement.length + "}}".length)) {
       template += c.trim() === "" ? c : "_"
     }
     replacement += template + "}}"
-    replaced.push(match)
+    phpFragments.push(match)
     return replacement
   })
   text = text.replace(/(?:^|>)(.*?)(?:<|$)/gs, (_match, between) => {
@@ -90,21 +101,24 @@ function formatHtmlContainingPhp(text: string, options: object): string {
       (_match, leadingSpace, rest) =>
         leadingSpace +
         rest.replace(returnPhpRegex, (_match, i) =>
-          replaced[i]
+          replaceFragment(phpFragments, i)
             .split("\n")
             .map((line, i) => (i === 0 ? "" : leadingSpace) + line)
             .join("\n")
         )
     )
-    .replace(returnPhpRegex, (_match, i) => replaced[i])
+    .replace(returnPhpRegex, (_match, i) => replaceFragment(phpFragments, i))
+  if (phpFragments.some((item) => item !== undefined)) {
+    throw new Error("Not all PHP fragments were replaced back.")
+  }
   return text
 }
 
 function formatMixedPhp(text: string, options: object): string {
-  const replaced: string[] = []
+  const xmlHeaderFragments: string[] = []
   text = text.replace(/<\?xml.*?\?>/g, (match) => {
-    const replacement = "{{XML_HEADER_" + replaced.length + "}}"
-    replaced.push(match)
+    const replacement = "{{XML_HEADER_" + xmlHeaderFragments.length + "}}"
+    xmlHeaderFragments.push(match)
     return replacement
   })
   text = text
@@ -122,10 +136,13 @@ function formatMixedPhp(text: string, options: object): string {
   } else {
     text = prettier.format(text, { ...options, parser: "html" })
   }
-  if (replaced.length) {
+  if (xmlHeaderFragments.length) {
     text = text.replace(/{{XML_HEADER_(\d+)}}/g, (_match, i) => {
-      return replaced[i]
+      return replaceFragment(xmlHeaderFragments, i)
     })
+  }
+  if (xmlHeaderFragments.some((item) => item !== undefined)) {
+    throw new Error("Not all XML header fragments were replaced back.")
   }
   return text
 }
