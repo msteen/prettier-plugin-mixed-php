@@ -68,7 +68,7 @@ function formatPhpContainingHtml(text: string, options: object): string {
   return text
 }
 
-const returnPhpRegex = /(?:{{PHP_|<PHP )(\d+).*?(?:}}| \/>)/gs
+const returnPhpRegex = /(?:{{PHP_|<PHP_)(\d+).*?(?:}}|\/>)/gs
 
 function formatHtmlContainingPhp(text: string, options: object): string {
   const phpFragments: string[] = []
@@ -85,15 +85,9 @@ function formatHtmlContainingPhp(text: string, options: object): string {
     phpFragments.push(match)
     return replacement
   })
-  text = text.replace(/(?:^|>)(.*?)(?:<|$)/gs, (_match, between) => {
-    return (
-      ">" +
-      between.replace(/{{PHP_(\d+.*?)}}/gs, (_match, between) => {
-        return "<PHP " + between + " />"
-      }) +
-      "<"
-    )
-  })
+  text = text.replace(/(?:^|>).*?(?:<|$)/gs, (match) =>
+    match.replace(/{{PHP_(\d+.*?)}}/gs, (_match, between) => "<PHP_" + between + "/>")
+  )
   text = prettier.format(text, { ...options, parser: "html" })
   text = text
     .replace(
