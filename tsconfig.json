@@ -1,5 +1,5 @@
 {
-  "exclude": ["test/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "compilerOptions": {
     "alwaysStrict": true,
     "declaration": false,
