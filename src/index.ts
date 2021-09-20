@@ -54,7 +54,7 @@ function formatPhpContainingHtml(text: string, options: object): string {
   let found = true
   while (found) {
     found = false
-    text = text.replace(/\n[ \t]*echo __HTML_(\d+)__;(?:\n| )/gs, (_match, i) => {
+    text = text.replace(/(?:\n[ \t]*| )echo __HTML_(\d+)__;(?:\n| )/gs, (_match, i) => {
       found = true
       let replacement = ""
       const { closeTag, between, openTag } = replaceFragment(htmlFragments, i)
