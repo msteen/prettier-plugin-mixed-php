@@ -47,8 +47,6 @@ function formatPhpContainingHtml(text: string, options: object): string {
       htmlFragments.push({ closeTag, between, openTag })
       return replacement
     })
-  const trailingCloseTag = text.match(/\?>\s*$/)
-  if (trailingCloseTag) text = text.slice(0, trailingCloseTag.index)
   text = prettier.format(text, { ...options, parser: "php" })
   text = text.slice("<?php".length)
   let found = true
@@ -126,12 +124,16 @@ function formatMixedPhp(text: string, options: object): string {
   })
   text = text
     .replace(/<\?(?!php|=|xml)/g, "<?php")
+    .replace(/<\?(php|=)\s*/gs, (match, tagType) => "<?" + tagType + newlineOrSpace(match))
     .replace(
-      /<\?(php|=)(\s*)(.*?);?(\s*)\?>/gs,
-      (_match, tagType, openSpace, between, closeSpace) =>
-        "<?" + tagType + newlineOrSpace(openSpace) + between + ";" + newlineOrSpace(closeSpace) + "?>"
+      /(<\?(?:php|=)[\n ])(.*?);?(\s*)\?>/gs,
+      (_match, start, between, closeSpace) => start + between + ";" + newlineOrSpace(closeSpace) + "?>"
     )
   const phpOpenCount = (text.match(/<\?(php|=)/g) || []).length
+  if (phpOpenCount > 0) {
+    const trailingCloseTag = text.match(/\?>\s*$/)
+    if (trailingCloseTag) text = text.slice(0, trailingCloseTag.index)
+  }
   if (phpOpenCount > 1) {
     text = formatHtmlContainingPhp(formatPhpContainingHtml(text, options), options)
   } else if (phpOpenCount === 1) {
