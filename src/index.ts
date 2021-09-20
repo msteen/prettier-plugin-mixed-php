@@ -27,6 +27,14 @@ const replaceFragment = (fragments: any[], i: number): any => {
   return fragment
 }
 
+function checkUnreplacedFragments(label: string, fragments: any[], text: string): void {
+  if (fragments.some((fragment) => fragment !== undefined)) {
+    log(fragments.filter((fragment) => fragment !== undefined))
+    console.log(text)
+    throw new Error("Not all " + label + " fragments were replaced back.")
+  }
+}
+
 function formatPhpContainingHtml(text: string, options: object): string {
   const htmlFragments: { closeTag: string; between: string; openTag: string }[] = []
   text =
@@ -62,9 +70,7 @@ function formatPhpContainingHtml(text: string, options: object): string {
       /<\?=[ \t]+echo (.*?); \?>/gs,
       (_match, between) => "<?= " + between.replace(/^[ \t]+/gm, indent(options)) + " ?>"
     )
-  if (htmlFragments.some((item) => item !== undefined)) {
-    throw new Error("Not all HTML fragments were replaced back.")
-  }
+  checkUnreplacedFragments("HTML", htmlFragments, text)
   return text
 }
 
@@ -102,9 +108,7 @@ function formatHtmlContainingPhp(text: string, options: object): string {
         )
     )
     .replace(returnPhpRegex, (_match, i) => replaceFragment(phpFragments, i))
-  if (phpFragments.some((item) => item !== undefined)) {
-    throw new Error("Not all PHP fragments were replaced back.")
-  }
+  checkUnreplacedFragments("PHP", phpFragments, text)
   return text
 }
 
@@ -135,9 +139,7 @@ function formatMixedPhp(text: string, options: object): string {
       return replaceFragment(xmlHeaderFragments, i)
     })
   }
-  if (xmlHeaderFragments.some((item) => item !== undefined)) {
-    throw new Error("Not all XML header fragments were replaced back.")
-  }
+  checkUnreplacedFragments("XML header", xmlHeaderFragments, text)
   return text
 }
 
