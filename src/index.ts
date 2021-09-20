@@ -50,9 +50,12 @@ function formatPhpContainingHtml(text: string, options: object): string {
   const trailingCloseTag = text.match(/\?>\s*$/)
   if (trailingCloseTag) text = text.slice(0, trailingCloseTag.index)
   text = prettier.format(text, { ...options, parser: "php" })
-  text = text
-    .slice("<?php".length)
-    .replace(/\n[ \t]*echo __HTML_(\d+)__;(?:\n| )/gs, (_match, i) => {
+  text = text.slice("<?php".length)
+  let found = true
+  while (found) {
+    found = false
+    text = text.replace(/\n[ \t]*echo __HTML_(\d+)__;(?:\n| )/gs, (_match, i) => {
+      found = true
       let replacement = ""
       const { closeTag, between, openTag } = replaceFragment(htmlFragments, i)
       delete htmlFragments[i]
@@ -65,6 +68,8 @@ function formatPhpContainingHtml(text: string, options: object): string {
       }
       return replacement
     })
+  }
+  text = text
     .replace(/<\?php[ \t]+/g, "<?php ")
     .replace(
       /<\?=[ \t]+echo (.*?); \?>/gs,
