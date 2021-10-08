@@ -14,7 +14,7 @@
   dependencies:
     "@cspotcode/source-map-consumer" "0.8.0"
 
-"@prettier/plugin-php@^0.17.4":
+"@prettier/plugin-php@^0.17.5":
   version "0.17.5"
   resolved "https://registry.yarnpkg.com/@prettier/plugin-php/-/plugin-php-0.17.5.tgz#030633730d8396d40e0c4bb958cce38e6a3f6a8c"
   integrity sha512-RjnM1hPYJfM42bwMKucLwnconyamPAl6EWXUobJvR+QR6+O57YL2du5CSz4U6XjRnkj/pCdmHxQ9egxDJcgrBA==
@@ -112,7 +112,7 @@ p-defer@^1.0.0:
   version "3.0.2"
   resolved "https://codeload.github.com/glayzzle/php-parser/tar.gz/4c5b0675f52c0baab2e5b10a4e50e5d7a79b2767"
 
-prettier@^2.3.2:
+prettier@^2.4.1:
   version "2.4.1"
   resolved "https://registry.yarnpkg.com/prettier/-/prettier-2.4.1.tgz#671e11c89c14a4cfc876ce564106c4a6726c9f5c"
   integrity sha512-9fbDAXSBcc6Bs1mZrDYb3XKzDLm4EXXL9sC1LqKP5rZkT6KRr/rf9amVUcODVXgguK/isJz0d0hP72WeaKWsvA==
