@@ -81,8 +81,10 @@ const returnPhpRegex = /(?:{{PHP_|<PHP_)(\d+).*?(?:}}|\/>)/gs
 
 function formatHtmlContainingPhp(text: string, options: object): string {
   const phpFragments: string[] = []
-
   text = text.replace(/<\?(?:php|=).*?(?:\?>|$)/gs, (match) => {
+    // Due to the HTML formatter there will be a trailing newline after a <PHP_.../> tag,
+    // so the already existing trailing newline has to be removed to prevent doubling them.
+    match = match.trimEnd()
     const i = match.indexOf("\n")
     const firstLine = i !== -1 ? match.slice(0, i) : match
     let replacement = "{{PHP_" + phpFragments.length
@@ -162,6 +164,7 @@ function getBaseOptions(options) {
       baseOptions[key] = options[key]
     }
   }
+  delete baseOptions["jsxBracketSameLine"] // deprecated
   return baseOptions
 }
 
