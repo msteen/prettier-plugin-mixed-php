@@ -36,3 +36,21 @@ prettier.resolveConfig(process.cwd()).then((options) => {
     })
   )
 })
+
+// formatDocBlocks(`<?php
+// /**
+//  * Creates or update files
+//  *
+//  * @author        Lars Meeuwsen <lars@safira.nl>
+//  * @category    modules\\foo
+//  *              bla die bla
+//  * @url         /order/createOrUpdateOrderFile
+//  * @method      POST
+//  * @param   int      $orderId
+//  * @param string   $name
+//  * @param    int    $fileId
+//  * @param array  $file
+//  * @return   array
+//  * @throws Exception
+//  */
+// `)

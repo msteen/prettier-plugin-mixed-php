@@ -117,6 +117,113 @@ function formatHtmlContainingPhp(text: string, options: object): string {
   return text
 }
 
+function maxStringLength(strings: string[]): number {
+  let maxLength = 0
+  for (const string of strings) {
+    if (string.length > maxLength) maxLength = string.length
+  }
+  return maxLength
+}
+
+function filterNullables<T>(nullables: (T | null | undefined)[]): T[] {
+  const items: T[] = []
+  for (const nullable of nullables) if (nullable != null) items.push(nullable)
+  return items
+}
+
+function formatDocBlocks(text: string, options: object) {
+  text = text.replace(/\/\*\*[ \t]*((?:\n[ \t]*\*.*?)*?)\n?[ \t]*\*\//gs, (match, between: string) => {
+    let replacer = ""
+    const lines = between
+      .trimStart()
+      .split("\n")
+      .map((line) => line.trimStart().slice(1).trim())
+    let descLines: string[]
+    let tagLines: string[]
+    const firstTagIndex = lines.findIndex((line) => line.startsWith("@"))
+    if (firstTagIndex !== -1) {
+      descLines = lines.slice(0, firstTagIndex)
+      tagLines = lines.slice(firstTagIndex)
+    } else {
+      descLines = lines.slice()
+      tagLines = []
+    }
+    const desc = descLines.join("\n")
+    if (desc) replacer += desc + "\n"
+    const tagLineGroups: string[][] = []
+    let tagLineGroup: string[] = []
+    for (const line of tagLines) {
+      if (line.startsWith("@")) {
+        if (tagLineGroup.length) {
+          tagLineGroups.push(tagLineGroup)
+        }
+        tagLineGroup = [line]
+      } else {
+        tagLineGroup.push(line)
+      }
+    }
+    if (tagLineGroup.length) {
+      tagLineGroups.push(tagLineGroup)
+    }
+    const tags: { name: string; value: string }[] = []
+    for (const tagLineGroup of tagLineGroups) {
+      const tag = tagLineGroup.join("\n")
+      if (!tag.startsWith("@")) {
+        throw new Error("Expected the first line to contain a docblock tag, e.g. @author: " + tag)
+      }
+      const match = tag.match(/@(\S+)[ \t]*(.*)/s)
+      const name = match![1]
+      let value = match![2]
+      tags.push({ name, value })
+    }
+    const maxNameLength = maxStringLength(tags.map(({ name }) => name))
+    const params: ({ type: string; variable: string; description?: string } | null)[] = []
+    for (const tag of tags) {
+      const { name, value } = tag
+      if (name === "param") {
+        const match = value.match(/(\S+)[ \t]+(\$?\S+)(?:[ \t]+(.*))?/s)
+        if (match) {
+          let [_whole, type, variable, description] = match
+          if (!variable.startsWith("$")) variable = "$" + variable
+          params.push({ type, variable, description })
+        } else {
+          params.push(null)
+        }
+      } else if (name === "license") {
+        const match = value.match(/(.*?)[ \t]+(.*)/)
+        if (match) {
+          tag.value = match[1] + indent(options) + match[2]
+        }
+      }
+    }
+    const items = filterNullables(params)
+    const maxTypeLength = maxStringLength(items.map(({ type }) => type))
+    const maxVariableLength = maxStringLength(items.map(({ variable }) => variable))
+    for (let { name, value } of tags) {
+      value = value.split("\n").join("\n" + " ".repeat("@".length + maxNameLength + indent(options).length))
+      if (name === "param") {
+        const param = params.shift()
+        if (param) {
+          const { type, variable, description } = param
+          value = `${type.padEnd(maxTypeLength, " ")}${indent(options)}`
+          if (description) {
+            value += variable.padEnd(maxVariableLength, " ") + indent(options) + description
+          } else {
+            value += variable
+          }
+        }
+      }
+      replacer += `@${name.padEnd(maxNameLength, " ")}${indent(options)}${value}\n`
+    }
+    return `/**\n${replacer
+      .trimEnd()
+      .split("\n")
+      .map((line) => " * " + line)
+      .join("\n")}\n */`
+  })
+  return text
+}
+
 function formatMixedPhp(text: string, options: object): string {
   const xmlHeaderFragments: string[] = []
   text = text.replace(/<\?xml.*?\?>/g, (match) => {
@@ -137,8 +244,10 @@ function formatMixedPhp(text: string, options: object): string {
     if (trailingCloseTag) text = text.slice(0, trailingCloseTag.index)
   }
   if (phpOpenCount > 1) {
+    text = formatDocBlocks(text, options)
     text = formatHtmlContainingPhp(formatPhpContainingHtml(text, options), options)
   } else if (phpOpenCount === 1) {
+    text = formatDocBlocks(text, options)
     text = prettier.format(text, { ...options, parser: "php" })
   } else {
     text = prettier.format(text, { ...options, parser: "html" })

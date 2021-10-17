@@ -1,6 +1,6 @@
 {
   "name": "prettier-plugin-mixed-php",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Prettier plugin that supports mixed PHP",
   "main": "lib/index.js",
