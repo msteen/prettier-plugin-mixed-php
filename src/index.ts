@@ -218,7 +218,7 @@ function formatDocBlocks(text: string, options: object) {
     return `/**\n${replacer
       .trimEnd()
       .split("\n")
-      .map((line) => " * " + line)
+      .map((line) => (" * " + line).trimEnd())
       .join("\n")}\n */`
   })
   return text
