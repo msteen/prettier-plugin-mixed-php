@@ -50,27 +50,11 @@ function formatPhpContainingHtml(text: string, options: object): string {
       htmlFragments.push({ closeTag, between, openTag })
       return replacement
     })
-  const stringFragments: string[] = []
-  text = text.replace(/'(?:[^']|\\')+'/gs, (match) => {
-    if (match.includes("\n")) {
-      let replacement = "'__STRING_" + stringFragments.length + "__'"
-      stringFragments.push(match)
-      return replacement
-    }
-    return match
-  })
-  text = text.replace(/"(?:[^"]|\\")+"/gs, (match) => {
-    if (match.includes("\n")) {
-      let replacement = '"__STRING_' + stringFragments.length + '__"'
-      stringFragments.push(match)
-      return replacement
-    }
-    return match
-  })
+  if (text.match(/'(?:[^']|\\')*?\n(?:[^']|\\')*'|"(?:[^"]|\\")*?\n(?:[^"]|\\")*"/s)) {
+    throw new Error("Mixed PHP with multiline string literals aren't supported.")
+  }
   text = prettier.format(text, { ...options, parser: "php" })
   text = text.slice("<?php".length)
-  text = text.replace(/'__STRING_(\d+)__'/g, (_match, i) => replaceFragment(stringFragments, i))
-  text = text.replace(/"__STRING_(\d+)__"/g, (_match, i) => replaceFragment(stringFragments, i))
   let found = true
   while (found) {
     found = false
