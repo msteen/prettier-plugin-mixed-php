@@ -22,6 +22,9 @@ function indent(options: any) {
 }
 
 const replaceFragment = (fragments: any[], i: number): any => {
+  if (!fragments[i]) {
+    throw new Error("Replacement " + i + " not found.")
+  }
   const fragment = fragments[i]
   delete fragments[i]
   return fragment
@@ -47,8 +50,27 @@ function formatPhpContainingHtml(text: string, options: object): string {
       htmlFragments.push({ closeTag, between, openTag })
       return replacement
     })
+  const stringFragments: string[] = []
+  text = text.replace(/'(?:[^']|\\')+'/gs, (match) => {
+    if (match.includes("\n")) {
+      let replacement = "'__STRING_" + stringFragments.length + "__'"
+      stringFragments.push(match)
+      return replacement
+    }
+    return match
+  })
+  text = text.replace(/"(?:[^"]|\\")+"/gs, (match) => {
+    if (match.includes("\n")) {
+      let replacement = '"__STRING_' + stringFragments.length + '__"'
+      stringFragments.push(match)
+      return replacement
+    }
+    return match
+  })
   text = prettier.format(text, { ...options, parser: "php" })
   text = text.slice("<?php".length)
+  text = text.replace(/'__STRING_(\d+)__'/g, (_match, i) => replaceFragment(stringFragments, i))
+  text = text.replace(/"__STRING_(\d+)__"/g, (_match, i) => replaceFragment(stringFragments, i))
   let found = true
   while (found) {
     found = false
@@ -240,8 +262,10 @@ function formatMixedPhp(text: string, options: object): string {
     )
   const phpOpenCount = (text.match(/<\?(php|=)/g) || []).length
   if (phpOpenCount > 0) {
-    const trailingCloseTag = text.match(/\?>\s*$/)
-    if (trailingCloseTag) text = text.slice(0, trailingCloseTag.index)
+    text = text.replace(/<\?(php|=).*?(\?>\s*)$/s, (match, start, close) => {
+      log(match)
+      return start === "php" ? match.slice(0, match.length - close.length) : match
+    })
   }
   if (phpOpenCount > 1) {
     text = formatDocBlocks(text, options)
