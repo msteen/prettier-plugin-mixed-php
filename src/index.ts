@@ -246,10 +246,10 @@ function formatMixedPhp(text: string, options: object): string {
     )
   const phpOpenCount = (text.match(/<\?(php|=)/g) || []).length
   if (phpOpenCount > 0) {
-    text = text.replace(/<\?(php|=).*?(\?>\s*)$/s, (match, start, close) => {
-      log(match)
-      return start === "php" ? match.slice(0, match.length - close.length) : match
-    })
+    const match = text.match(/.*<\?(php|=).*?(\?>\s*)$/s)
+    if (match && match[1] === "php") {
+      text = text.slice(0, text.length - match[2].length)
+    }
   }
   if (phpOpenCount > 1) {
     text = formatDocBlocks(text, options)
