@@ -3,14 +3,14 @@ import { inspect } from "util"
 import * as prettier from "prettier"
 
 function log(...args: any[]): void {
-  console.log(
-    ...args.map((arg) =>
-      inspect(arg, {
-        depth: null,
-        colors: true,
-      })
-    )
-  )
+  console.log(...args.map(prettyprint))
+}
+
+function prettyprint(arg: any): string {
+  return inspect(arg, {
+    depth: null,
+    colors: true,
+  })
 }
 
 function newlineOrSpace(tag: string): string {
@@ -50,8 +50,14 @@ function formatPhpContainingHtml(text: string, options: object): string {
       htmlFragments.push({ closeTag, between, openTag })
       return replacement
     })
-  if (text.match(/'(?:[^']|\\')*?\n(?:[^']|\\')*'|"(?:[^"]|\\")*?\n(?:[^"]|\\")*"/s)) {
-    throw new Error("Mixed PHP with multiline string literals aren't supported.")
+  for (const string of text
+    .replace(/^\s*?\/\/.*$/gm, "")
+    .match(/\/\*.*?\*\/|'(?:[^']|\\')*?'|"(?:[^"]|\\")*?"/gs) || []) {
+    if (string.includes("\n")) {
+      throw new Error(
+        "Mixed PHP with multiline comments or string literals aren't supported: " + prettyprint(string) + "."
+      )
+    }
   }
   text = prettier.format(text, { ...options, parser: "php" })
   text = text.slice("<?php".length)
@@ -244,17 +250,17 @@ function formatMixedPhp(text: string, options: object): string {
       /(<\?(?:php|=)[\n ])(.*?);?(\s*)\?>/gs,
       (_match, start, between, closeSpace) => start + between + ";" + newlineOrSpace(closeSpace) + "?>"
     )
-  const phpOpenCount = (text.match(/<\?(php|=)/g) || []).length
-  if (phpOpenCount > 0) {
-    const match = text.match(/.*<\?(php|=).*?(\?>\s*)$/s)
-    if (match && match[1] === "php") {
-      text = text.slice(0, text.length - match[2].length)
+  const phpOpenTags = text.match(/<\?(?:php|=)/g) || []
+  if (phpOpenTags.length > 0 && phpOpenTags[phpOpenTags.length - 1] === "<?php") {
+    const match = text.match(/\?>\s*$/s)
+    if (match) {
+      text = text.slice(0, text.length - match[0].length)
     }
   }
-  if (phpOpenCount > 1) {
+  if (phpOpenTags.length > 1) {
     text = formatDocBlocks(text, options)
     text = formatHtmlContainingPhp(formatPhpContainingHtml(text, options), options)
-  } else if (phpOpenCount === 1) {
+  } else if (phpOpenTags.length === 1) {
     text = formatDocBlocks(text, options)
     text = prettier.format(text, { ...options, parser: "php" })
   } else {
