@@ -236,7 +236,7 @@ function formatDocBlocks(text: string, options: object) {
   return text
 }
 
-function formatMixedPhp(text: string, options: object): string {
+function formatPhpExtra(text: string, options: object): string {
   const xmlHeaderFragments: string[] = []
   text = text.replace(/<\?xml.*?\?>/g, (match) => {
     const replacement = "{{XML_HEADER_" + xmlHeaderFragments.length + "}}"
@@ -246,10 +246,21 @@ function formatMixedPhp(text: string, options: object): string {
   text = text
     .replace(/<\?(?!php|=|xml)/g, "<?php")
     .replace(/<\?(php|=)\s*/gs, (match, tagType) => "<?" + tagType + newlineOrSpace(match))
-    .replace(
-      /(<\?(?:php|=)[\n ])(.*?);?(\s*)\?>/gs,
-      (_match, start, between, closeSpace) => start + between + ";" + newlineOrSpace(closeSpace) + "?>"
-    )
+    .replace(/(<\?(?:php|=)[\n ])(.*?);?(\s*)\?>/gs, (_match, start, between, closeSpace) => start + between + ";" + newlineOrSpace(closeSpace) + "?>");
+    // .replace(
+    //   /(<\?(?:php|=)[\n ])(.*?)(\s*)\?>/gs,
+    //   (_match, start, between, closeSpace) => {
+    //     const parts = between.split(/(\s*\/\/[^\n]*(?:\n\s*|$)|\s*\/\*.*?\*\/\s*)/gs)
+    //     for (let i = parts.length - 1; i >= 0; i--) {
+    //       const part = parts[i].trim()
+    //       if (!(part === '' || part.startsWith('//') || part.startsWith('/*') && part.endsWith('*/'))) {
+    //         between = parts.slice(0, i + 1).join("") + ";" + parts.slice(i + 1).join("")
+    //         break
+    //       }
+    //     }
+    //     return start + between + "?>"
+    //   }
+    // )
   const phpOpenTags = text.match(/<\?(?:php|=)/g) || []
   if (phpOpenTags.length > 0 && phpOpenTags[phpOpenTags.length - 1] === "<?php") {
     const match = text.match(/\?>\s*$/s)
@@ -275,6 +286,10 @@ function formatMixedPhp(text: string, options: object): string {
   return text
 }
 
+function formatTsExtra(text: string, options: object): string {
+  return prettier.format(formatDocBlocks(text, options), { ...options, parser: "typescript" })
+}
+
 function getBaseOptions(options) {
   const baseOptions = {}
   for (const key in prettier.__internal.coreOptions.options) {
@@ -291,17 +306,29 @@ function getBaseOptions(options) {
   return baseOptions
 }
 
+const typeScriptLanguage = prettier.getSupportInfo().languages.find(({ name }) => name === "TypeScript")!
+
 export = {
-  languages: phpPlugin.languages.map((language) => ({ ...language, parsers: ["mixed-php"] })),
+  languages: [
+    ...phpPlugin.languages.map((language) => ({ ...language, parsers: ["php-extra"] })),
+    { ...typeScriptLanguage, parsers: ["ts-extra"] },
+  ],
   parsers: {
-    "mixed-php": {
+    "php-extra": {
       parse: (text) => text,
-      astFormat: "mixed-php-ast",
+      astFormat: "php-extra-ast",
+    },
+    "ts-extra": {
+      parse: (text) => text,
+      astFormat: "ts-extra-ast",
     },
   },
   printers: {
-    "mixed-php-ast": {
-      print: (path, options) => formatMixedPhp(path.getValue(), getBaseOptions(options)),
+    "php-extra-ast": {
+      print: (path, options) => formatPhpExtra(path.getValue(), getBaseOptions(options)),
+    },
+    "ts-extra-ast": {
+      print: (path, options) => formatTsExtra(path.getValue(), getBaseOptions(options)),
     },
   },
 }

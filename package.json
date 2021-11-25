@@ -1,8 +1,8 @@
 {
-  "name": "prettier-plugin-mixed-php",
-  "version": "0.3.3",
+  "name": "prettier-plugin-extra",
+  "version": "0.3.4",
   "private": true,
-  "description": "Prettier plugin that supports mixed PHP",
+  "description": "Prettier plugin that provides extra support for some languages.",
   "main": "lib/index.js",
   "keywords": [
     "prettier",

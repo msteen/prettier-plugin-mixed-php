@@ -16,22 +16,26 @@ function log(...args: any[]): void {
 function readExample(name: string): string {
   let contents = ""
   try {
-    contents = fs.readFileSync(`examples/${name}.php`, "utf-8")
+    contents = fs.readFileSync(`examples/${name}`, "utf-8")
   } catch (_) {}
   return contents
 }
 
-// let text = readExample("bad")
-// let text = readExample("trailing")
-// let text = readExample("mixed")
-// let text = readExample("unbalanced")
-let text = readExample("tpl") || readExample("mixed")
+// let text = readExample("bad.php")
+// let text = readExample("trailing.php")
+// let text = readExample("mixed.php")
+// let text = readExample("unbalanced.php")
+let text = readExample("tpl.php") || readExample("mixed.php")
+// let text = readExample("tpl.ts")
+
+// log(prettier.getSupportInfo())
 
 prettier.resolveConfig(process.cwd()).then((options) => {
   console.log(
     prettier.format(text, {
       ...options,
-      parser: "mixed-php",
+      parser: "php-extra",
+      // parser: "ts-extra",
       plugins: ["."],
     })
   )
