@@ -143,7 +143,7 @@ function filterNullables<T>(nullables: (T | null | undefined)[]): T[] {
   return items
 }
 
-function formatDocBlocks(text: string, options: object) {
+function formatDocBlocks(text: string, options: any) {
   text = text.replace(/\/\*\*[ \t]*((?:\n[ \t]*\*.*?)*?)\n?[ \t]*\*\//gs, (match, between: string) => {
     let replacer = ""
     const lines = between
@@ -196,7 +196,8 @@ function formatDocBlocks(text: string, options: object) {
         const match = value.match(/(\S+)[ \t]+(\$?\S+)(?:[ \t]+(.*))?/s)
         if (match) {
           let [_whole, type, variable, description] = match
-          if (!variable.startsWith("$")) variable = "$" + variable
+          if (options.parser === "php-extra" && !variable.startsWith("$")) variable = "$" + variable
+          if (options.parser === "ts-extra" && variable.startsWith("$")) variable = variable.slice(1)
           params.push({ type, variable, description })
         } else {
           params.push(null)

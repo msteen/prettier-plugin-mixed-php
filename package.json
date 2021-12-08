@@ -1,6 +1,6 @@
 {
   "name": "prettier-plugin-extra",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "description": "Prettier plugin that provides extra support for some languages.",
   "main": "lib/index.js",
